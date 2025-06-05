@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수원 맛집 - 선택된 지역</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; text-align: center; padding: 20px; background-color: #f4f4f4; color: #333; }
+        h1 { color: #333; margin-bottom: 10px; }
+        h2 { color: #555; margin-bottom: 20px; }
+        
+        /* 검색 및 필터 컨테이너 */
+        .search-filter-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .search-container input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        
+        .search-container button {
+            padding: 12px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+        }
+        
+        .search-container button:hover {
+            background-color: #0056b3;
+        }
+        
+        .filter-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .filter-group label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .filter-group select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .clear-filters {
+            padding: 8px 15px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .clear-filters:hover {
+            background-color: #5a6268;
+        }
+        
+        /* 결과 정보 */
+        .results-info {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        #map { width: 100%; height: 400px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            justify-content: center;
+            padding: 0 20px;
+        }
+        
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #fff;
+            text-align: left;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease-in-out;
+            position: relative;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card h3 { 
+            margin-top: 0; 
+            margin-bottom: 10px; 
+            color: #007bff; 
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .card h3 a { 
+            text-decoration: none; 
+            color: #007bff; 
+            flex: 1;
+        }
+        
+        .card h3 a:hover { text-decoration: underline; }
+        
+        .card p { margin-bottom: 8px; line-height: 1.5; font-size: 0.95em; }
+        .card strong { color: #555; }
+        
+        .card .menu-summary {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        /* 별점 표시 */
+        .card-rating {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .stars {
+            color: #ffc107;
+            font-size: 16px;
+        }
+        
+        /* 즐겨찾기 버튼 */
+        .favorite-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-left: 10px;
+        }
+        
+        .favorite-btn:hover {
+            transform: scale(1.2);
+        }
+        
+        .favorite-btn.active {
+            color: #ff6b6b;
+        }
+        
+        /* 음식 종류 태그 */
+        .food-type-tag {
+            display: inline-block;
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-top: 8px;
+        }
+        
+        .no-restaurant {
+            margin-top: 40px;
+            font-size: 1.2em;
+            color: #777;
+        }
+        
+        /* Custom Overlay 스타일 */
+        .label {
+            padding: 4px 8px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            white-space: nowrap;
+        }
+        
+        /* 로딩 스피너 */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            font-size: 1.1em;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 모바일 반응형 */
+        @media (max-width: 768px) {
+            .search-container {
+                flex-direction: column;
+            }
+            
+            .search-container input {
+                min-width: auto;
+            }
+            
+            .filter-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .card-container {
+                grid-template-columns: 1fr;
+                padding: 0 10px;
+            }
+            
+            #map {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>수원 맛집 가이드</h1>
+    <h2 id="selectedRegion"></h2>
+
+    <!-- 검색 및 필터 섹션 -->
+    <div class="search-filter-container">
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="맛집 이름이나 메뉴로 검색하세요..." />
+            <button onclick="searchRestaurants()" aria-label="검색">🔍 검색</button>
+        </div>
+        
+        <div class="filter-container">
+            <div class="filter-group">
+                <label for="foodTypeFilter">음식 종류:</label>
+                <select id="foodTypeFilter" onchange="applyFilters()">
+                    <option value="">전체</option>
+                    <option value="한식">한식</option>
+                    <option value="중식">중식</option>
+                    <option value="일식">일식</option>
+                    <option value="양식">양식</option>
+                    <option value="분식">분식</option>
+                    <option value="카페">카페·디저트</option>
+                    <option value="기타">기타</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="ratingFilter">평점:</label>
+                <select id="ratingFilter" onchange="applyFilters()">
+                    <option value="">전체</option>
+                    <option value="5">5점 이상</option>
+                    <option value="4">4점 이상</option>
+                    <option value="3">3점 이상</option>
+                    <option value="2">2점 이상</option>
+                </select>
+            </div>
+            
+            <button class="clear-filters" onclick="clearAllFilters()">필터 초기화</button>
+        </div>
+    </div>
+
+    <!-- 결과 정보 -->
+    <div class="results-info" id="resultsInfo"></div>
+
+    <!-- 로딩 표시 -->
+    <div class="loading" id="loadingSpinner">
+        <div class="spinner"></div>
+        <div>검색 중...</div>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="restaurantList" class="card-container">
+        <!-- 맛집 카드가 여기에 동적으로 추가됩니다 -->
+    </div>
+
+    <div id="noRestaurantMessage" class="no-restaurant" style="display: none;">
+        검색 조건에 맞는 맛집이 없습니다.
+    </div>
+
+    <!-- data.js 파일 로드 -->
+    <script src="data.js"></script>
+    <!-- 카카오맵 API 로드 -->
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=d07c1fa3d1db87476adc4e47a13eecf0&libraries=services"></script>
+
+    <script>
+        // 전역 변수
+        let allRestaurants = [];
+        let filteredRestaurants = [];
+        let map;
+        let markers = [];
+        let customOverlays = [];
+        let favorites = new Set(); // 즐겨찾기 저장용
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePage();
+            loadFavorites();
+        });
+
+        function initializePage() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const selectedRegionQuery = urlParams.get('region');
+
+            const regionTitleElement = document.getElementById('selectedRegion');
+            if (selectedRegionQuery) {
+                regionTitleElement.textContent = `수원시 ${selectedRegionQuery} 맛집 리스트`;
+            } else {
+                regionTitleElement.textContent = `전체 수원 맛집 리스트`;
+            }
+
+            // 선택된 지역에 맞는 맛집 필터링
+            allRestaurants = restaurants.filter(r => {
+                return selectedRegionQuery ? r.region === `수원시 ${selectedRegionQuery}` : true;
+            });
+
+            filteredRestaurants = [...allRestaurants];
+            
+            initializeMap();
+            displayRestaurants(filteredRestaurants);
+            updateResultsInfo(filteredRestaurants.length, allRestaurants.length);
+
+            // 검색창 엔터키 이벤트
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchRestaurants();
+                }
+            });
+        }
+
+        function initializeMap() {
+            const mapContainer = document.getElementById('map');
+            const mapOption = {
+                center: new kakao.maps.LatLng(37.2636, 127.0286),
+                level: 6
+            };
+
+            if (typeof kakao !== 'undefined' && kakao.maps) {
+                map = new kakao.maps.Map(mapContainer, mapOption);
+            } else {
+                handleMapLoadError();
+            }
+        }
+
+        function handleMapLoadError() {
+            const mapContainer = document.getElementById('map');
+            mapContainer.innerHTML = `
+                <div style="padding: 50px; text-align: center; color: #666; background: white; border-radius: 8px;">
+                    <p style="font-size: 1.2em; margin-bottom: 10px;">🗺️ 지도를 불러올 수 없습니다</p>
+                    <p style="font-size: 0.9em; color: #999;">인터넷 연결을 확인해주세요</p>
+                </div>
+            `;
+        }
+
+        function searchRestaurants() {
+            showLoading(true);
+            
+            setTimeout(() => {
+                const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+                
+                if (!searchTerm) {
+                    filteredRestaurants = [...allRestaurants];
+                } else {
+                    filteredRestaurants = allRestaurants.filter(restaurant => {
+                        const nameMatch = restaurant.name.toLowerCase().includes(searchTerm);
+                        const menuMatch = restaurant.menuItems && 
+                            restaurant.menuItems.some(menu => menu.toLowerCase().includes(searchTerm));
+                        const descMatch = restaurant.desc.toLowerCase().includes(searchTerm);
+                        
+                        return nameMatch || menuMatch || descMatch;
+                    });
+                }
+                
+                applyFilters();
+                showLoading(false);
+            }, 500);
+        }
+
+        function applyFilters() {
+            const foodType = document.getElementById('foodTypeFilter').value;
+            const minRating = document.getElementById('ratingFilter').value;
+            
+            let filtered = [...filteredRestaurants];
+            
+            // 음식 종류 필터
+            if (foodType) {
+                filtered = filtered.filter(restaurant => {
+                    return restaurant.foodType === foodType;
+                });
+            }
+            
+            // 평점 필터 (실제 리뷰 데이터 사용)
+            if (minRating) {
+                filtered = filtered.filter(restaurant => {
+                    const avgRating = getAverageRating(restaurant.id);
+                    return avgRating >= parseFloat(minRating);
+                });
+            }
+            
+            displayRestaurants(filtered);
+            updateResultsInfo(filtered.length, allRestaurants.length);
+        }
+
+        function clearAllFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('foodTypeFilter').value = '';
+            document.getElementById('ratingFilter').value = '';
+            
+            filteredRestaurants = [...allRestaurants];
+            displayRestaurants(filteredRestaurants);
+            updateResultsInfo(filteredRestaurants.length, allRestaurants.length);
+        }
+
+        function displayRestaurants(restaurants) {
+            clearMapMarkers();
+            
+            const restaurantListElement = document.getElementById("restaurantList");
+            const noRestaurantMessageElement = document.getElementById("noRestaurantMessage");
+            
+            restaurantListElement.innerHTML = '';
+            
+            if (restaurants.length === 0) {
+                noRestaurantMessageElement.style.display = 'block';
+                return;
+            }
+            
+            noRestaurantMessageElement.style.display = 'none';
+            
+            if (map) {
+                const bounds = new kakao.maps.LatLngBounds();
+                
+                restaurants.forEach(r => {
+                    // 카드 생성
+                    const avgRating = getAverageRating(r.id);
+                    const reviewCount = getReviewCount(r.id);
+                    const menuSummary = r.menuItems && r.menuItems.length > 0
+                        ? r.menuItems.slice(0, 2).join(', ') + (r.menuItems.length > 2 ? ' 등' : '')
+                        : '메뉴 정보 없음';
+
+                    const div = document.createElement("div");
+                    div.className = "card";
+                    div.innerHTML = `
+                        <h3>
+                            <a href="detail.html?id=${r.id}">${r.name}</a>
+                            <button class="favorite-btn ${favorites.has(r.id) ? 'active' : ''}" 
+                                    onclick="toggleFavorite('${r.id}')" 
+                                    aria-label="즐겨찾기">
+                                ${favorites.has(r.id) ? '❤️' : '🤍'}
+                            </button>
+                        </h3>
+                        <p><strong>📍 주소:</strong> ${r.addr}</p>
+                        <p><strong>🍴 대표 메뉴:</strong></p>
+                        <p class="menu-summary">${menuSummary}</p>
+                        <div class="card-rating">
+                            <span class="stars">${generateStars(avgRating)}</span>
+                            <span>${avgRating > 0 ? avgRating.toFixed(1) + '점' : '평점 없음'} (리뷰 ${reviewCount}개)</span>
+                        </div>
+                        <p>${r.desc}</p>
+                        ${r.foodType ? `<span class="food-type-tag">${r.foodType}</span>` : ''}
+                    `;
+                    restaurantListElement.appendChild(div);
+
+                    // 지도 마커 추가
+                    if (map) {
+                        const markerPosition = new kakao.maps.LatLng(r.lat, r.lng);
+                        const marker = new kakao.maps.Marker({
+                            position: markerPosition,
+                            map: map,
+                            title: r.name
+                        });
+                        markers.push(marker);
+                        bounds.extend(markerPosition);
+
+                        const customOverlayContent = `
+                            <div class="label">
+                                <span class="center">${r.name}</span>
+                            </div>
+                        `;
+
+                        const customOverlay = new kakao.maps.CustomOverlay({
+                            position: markerPosition,
+                            content: customOverlayContent,
+                            map: map,
+                            yAnchor: 0.9
+                        });
+                        customOverlays.push(customOverlay);
+                    }
+                });
+
+                if (map && restaurants.length > 0) {
+                    map.setBounds(bounds);
+                }
+            }
+        }
+
+        function clearMapMarkers() {
+            markers.forEach(marker => marker.setMap(null));
+            customOverlays.forEach(overlay => overlay.setMap(null));
+            markers = [];
+            customOverlays = [];
+        }
+
+        function generateStars(rating) {
+            if (rating === 0) return '☆☆☆☆☆';
+            
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 >= 0.5;
+            let stars = '';
+            
+            for (let i = 0; i < fullStars; i++) {
+                stars += '★';
+            }
+            if (hasHalfStar) {
+                stars += '☆';
+            }
+            while (stars.length < 5) {
+                stars += '☆';
+            }
+            
+            return stars;
+        }
+
+        // 실제 localStorage에서 리뷰 데이터를 읽어와서 평균 별점 계산
+        function getAverageRating(restaurantId) {
+            try {
+                const reviews = JSON.parse(localStorage.getItem(`reviews_${restaurantId}`)) || [];
+                if (reviews.length === 0) return 0;
+                
+                const sum = reviews.reduce((total, review) => total + review.rating, 0);
+                return sum / reviews.length;
+            } catch (e) {
+                console.error('리뷰 로드 실패:', e);
+                return 0;
+            }
+        }
+
+        // 실제 localStorage에서 리뷰 개수를 가져오기
+        function getReviewCount(restaurantId) {
+            try {
+                const reviews = JSON.parse(localStorage.getItem(`reviews_${restaurantId}`)) || [];
+                return reviews.length;
+            } catch (e) {
+                console.error('리뷰 개수 로드 실패:', e);
+                return 0;
+            }
+        }
+
+        function toggleFavorite(restaurantId) {
+            if (favorites.has(restaurantId)) {
+                favorites.delete(restaurantId);
+            } else {
+                favorites.add(restaurantId);
+            }
+            
+            saveFavorites();
+            
+            // 버튼 업데이트
+            const btn = event.target;
+            if (favorites.has(restaurantId)) {
+                btn.innerHTML = '❤️';
+                btn.classList.add('active');
+            } else {
+                btn.innerHTML = '🤍';
+                btn.classList.remove('active');
+            }
+            
+            // 간단한 피드백
+            showToast(favorites.has(restaurantId) ? '즐겨찾기에 추가되었습니다!' : '즐겨찾기에서 제거되었습니다!');
+        }
+
+        function loadFavorites() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('restaurantFavorites') || '[]');
+                favorites = new Set(saved);
+            } catch (e) {
+                console.error('즐겨찾기 로드 실패:', e);
+                favorites = new Set();
+            }
+        }
+
+        function saveFavorites() {
+            try {
+                localStorage.setItem('restaurantFavorites', JSON.stringify([...favorites]));
+            } catch (e) {
+                console.error('즐겨찾기 저장 실패:', e);
+            }
+        }
+
+        function showLoading(show) {
+            const spinner = document.getElementById('loadingSpinner');
+            const restaurantList = document.getElementById('restaurantList');
+            
+            if (show) {
+                spinner.style.display = 'block';
+                restaurantList.style.opacity = '0.5';
+            } else {
+                spinner.style.display = 'none';
+                restaurantList.style.opacity = '1';
+            }
+        }
+
+        function updateResultsInfo(filtered, total) {
+            const info = document.getElementById('resultsInfo');
+            if (filtered === total) {
+                info.textContent = `총 ${total}개의 맛집이 있습니다.`;
+            } else {
+                info.textContent = `${total}개 중 ${filtered}개의 맛집을 찾았습니다.`;
+            }
+        }
+
+        function showToast(message) {
+            // 간단한 토스트 메시지
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #333;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 5px;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // CSS 애니메이션 추가
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
