@@ -263,6 +263,12 @@
                 height: 300px;
             }
         }
+
+        /* 애니메이션 추가 */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -326,10 +332,8 @@
         검색 조건에 맞는 맛집이 없습니다.
     </div>
 
-    <!-- data.js 파일 로드 -->
+    <!-- data.js 파일을 먼저 로드 -->
     <script src="data.js"></script>
-    <!-- 카카오맵 API 로드 -->
-    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=d07c1fa3d1db87476adc4e47a13eecf0&libraries=services"></script>
 
     <script>
         // 전역 변수
@@ -339,14 +343,19 @@
         let markers = [];
         let customOverlays = [];
         let favorites = new Set(); // 즐겨찾기 저장용
+        let mapInitialized = false; // 지도 초기화 상태 확인용
 
         // 초기화
         document.addEventListener('DOMContentLoaded', function() {
-            initializePage();
+            // 먼저 기본 설정을 초기화
+            initializeBasicSettings();
             loadFavorites();
+            
+            // Kakao 지도 API 로드 후 지도 초기화
+            loadKakaoMapAPI();
         });
 
-        function initializePage() {
+        function initializeBasicSettings() {
             const urlParams = new URLSearchParams(window.location.search);
             const selectedRegionQuery = urlParams.get('region');
 
@@ -358,15 +367,17 @@
             }
 
             // 선택된 지역에 맞는 맛집 필터링
-            allRestaurants = restaurants.filter(r => {
-                return selectedRegionQuery ? r.region === `수원시 ${selectedRegionQuery}` : true;
-            });
+            if (typeof restaurants !== 'undefined') {
+                allRestaurants = restaurants.filter(r => {
+                    return selectedRegionQuery ? r.region === `수원시 ${selectedRegionQuery}` : true;
+                });
 
-            filteredRestaurants = [...allRestaurants];
-            
-            initializeMap();
-            displayRestaurants(filteredRestaurants);
-            updateResultsInfo(filteredRestaurants.length, allRestaurants.length);
+                filteredRestaurants = [...allRestaurants];
+                
+                // 지도 없이 먼저 레스토랑 목록 표시
+                displayRestaurants(filteredRestaurants);
+                updateResultsInfo(filteredRestaurants.length, allRestaurants.length);
+            }
 
             // 검색창 엔터키 이벤트
             document.getElementById('searchInput').addEventListener('keypress', function(e) {
@@ -376,16 +387,60 @@
             });
         }
 
+        function loadKakaoMapAPI() {
+            // 이미 kakao가 로드되어 있으면 바로 지도 초기화
+            if (typeof kakao !== 'undefined' && kakao.maps) {
+                initializeMap();
+                return;
+            }
+
+            // 스크립트 동적 로드
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=d07c1fa3d1db87476adc4e47a13eecf0&libraries=services&autoload=false';
+            
+            script.onload = function() {
+                // kakao.maps.load를 사용하여 완전히 로드된 후 초기화
+                if (typeof kakao !== 'undefined' && kakao.maps) {
+                    kakao.maps.load(function() {
+                        initializeMap();
+                        // 지도가 초기화된 후 현재 필터링된 레스토랑들을 다시 표시
+                        if (filteredRestaurants.length > 0) {
+                            displayRestaurants(filteredRestaurants);
+                        }
+                    });
+                } else {
+                    handleMapLoadError();
+                }
+            };
+            
+            script.onerror = function() {
+                console.error('Kakao 지도 API 로드 실패');
+                handleMapLoadError();
+            };
+            
+            document.head.appendChild(script);
+        }
+
         function initializeMap() {
+            if (mapInitialized) return; // 중복 초기화 방지
+            
             const mapContainer = document.getElementById('map');
             const mapOption = {
                 center: new kakao.maps.LatLng(37.2636, 127.0286),
                 level: 6
             };
 
-            if (typeof kakao !== 'undefined' && kakao.maps) {
-                map = new kakao.maps.Map(mapContainer, mapOption);
-            } else {
+            try {
+                if (typeof kakao !== 'undefined' && kakao.maps) {
+                    map = new kakao.maps.Map(mapContainer, mapOption);
+                    mapInitialized = true;
+                    console.log('지도 초기화 완료');
+                } else {
+                    throw new Error('Kakao Maps API not available');
+                }
+            } catch (error) {
+                console.error('지도 초기화 오류:', error);
                 handleMapLoadError();
             }
         }
@@ -474,42 +529,46 @@
             
             noRestaurantMessageElement.style.display = 'none';
             
-            if (map) {
-                const bounds = new kakao.maps.LatLngBounds();
-                
-                restaurants.forEach(r => {
-                    // 카드 생성
-                    const avgRating = getAverageRating(r.id);
-                    const reviewCount = getReviewCount(r.id);
-                    const menuSummary = r.menuItems && r.menuItems.length > 0
-                        ? r.menuItems.slice(0, 2).join(', ') + (r.menuItems.length > 2 ? ' 등' : '')
-                        : '메뉴 정보 없음';
+            // 지도가 초기화되어 있고 사용 가능한 경우에만 지도 관련 작업 수행
+            let bounds = null;
+            if (mapInitialized && map && typeof kakao !== 'undefined' && kakao.maps) {
+                bounds = new kakao.maps.LatLngBounds();
+            }
+            
+            restaurants.forEach(r => {
+                // 카드 생성
+                const avgRating = getAverageRating(r.id);
+                const reviewCount = getReviewCount(r.id);
+                const menuSummary = r.menuItems && r.menuItems.length > 0
+                    ? r.menuItems.slice(0, 2).join(', ') + (r.menuItems.length > 2 ? ' 등' : '')
+                    : '메뉴 정보 없음';
 
-                    const div = document.createElement("div");
-                    div.className = "card";
-                    div.innerHTML = `
-                        <h3>
-                            <a href="detail.html?id=${r.id}">${r.name}</a>
-                            <button class="favorite-btn ${favorites.has(r.id) ? 'active' : ''}" 
-                                    onclick="toggleFavorite('${r.id}')" 
-                                    aria-label="즐겨찾기">
-                                ${favorites.has(r.id) ? '❤️' : '🤍'}
-                            </button>
-                        </h3>
-                        <p><strong>📍 주소:</strong> ${r.addr}</p>
-                        <p><strong>🍴 대표 메뉴:</strong></p>
-                        <p class="menu-summary">${menuSummary}</p>
-                        <div class="card-rating">
-                            <span class="stars">${generateStars(avgRating)}</span>
-                            <span>${avgRating > 0 ? avgRating.toFixed(1) + '점' : '평점 없음'} (리뷰 ${reviewCount}개)</span>
-                        </div>
-                        <p>${r.desc}</p>
-                        ${r.foodType ? `<span class="food-type-tag">${r.foodType}</span>` : ''}
-                    `;
-                    restaurantListElement.appendChild(div);
+                const div = document.createElement("div");
+                div.className = "card";
+                div.innerHTML = `
+                    <h3>
+                        <a href="detail.html?id=${r.id}">${r.name}</a>
+                        <button class="favorite-btn ${favorites.has(r.id) ? 'active' : ''}" 
+                                onclick="toggleFavorite('${r.id}')" 
+                                aria-label="즐겨찾기">
+                            ${favorites.has(r.id) ? '❤️' : '🤍'}
+                        </button>
+                    </h3>
+                    <p><strong>📍 주소:</strong> ${r.addr}</p>
+                    <p><strong>🍴 대표 메뉴:</strong></p>
+                    <p class="menu-summary">${menuSummary}</p>
+                    <div class="card-rating">
+                        <span class="stars">${generateStars(avgRating)}</span>
+                        <span>${avgRating > 0 ? avgRating.toFixed(1) + '점' : '평점 없음'} (리뷰 ${reviewCount}개)</span>
+                    </div>
+                    <p>${r.desc}</p>
+                    ${r.foodType ? `<span class="food-type-tag">${r.foodType}</span>` : ''}
+                `;
+                restaurantListElement.appendChild(div);
 
-                    // 지도 마커 추가
-                    if (map) {
+                // 지도 마커 추가 (지도가 사용 가능한 경우에만)
+                if (mapInitialized && map && typeof kakao !== 'undefined' && kakao.maps) {
+                    try {
                         const markerPosition = new kakao.maps.LatLng(r.lat, r.lng);
                         const marker = new kakao.maps.Marker({
                             position: markerPosition,
@@ -532,18 +591,37 @@
                             yAnchor: 0.9
                         });
                         customOverlays.push(customOverlay);
+                    } catch (error) {
+                        console.error('마커 생성 오류:', error);
                     }
-                });
+                }
+            });
 
-                if (map && restaurants.length > 0) {
+            // 지도 범위 설정 (지도가 사용 가능하고 레스토랑이 있는 경우에만)
+            if (mapInitialized && map && bounds && restaurants.length > 0) {
+                try {
                     map.setBounds(bounds);
+                } catch (error) {
+                    console.error('지도 범위 설정 오류:', error);
                 }
             }
         }
 
         function clearMapMarkers() {
-            markers.forEach(marker => marker.setMap(null));
-            customOverlays.forEach(overlay => overlay.setMap(null));
+            markers.forEach(marker => {
+                try {
+                    marker.setMap(null);
+                } catch (error) {
+                    console.error('마커 제거 오류:', error);
+                }
+            });
+            customOverlays.forEach(overlay => {
+                try {
+                    overlay.setMap(null);
+                } catch (error) {
+                    console.error('오버레이 제거 오류:', error);
+                }
+            });
             markers = [];
             customOverlays = [];
         }
@@ -677,16 +755,6 @@
                 toast.remove();
             }, 3000);
         }
-
-        // CSS 애니메이션 추가
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
-        document.head.appendChild(style);
     </script>
 </body>
 </html>
